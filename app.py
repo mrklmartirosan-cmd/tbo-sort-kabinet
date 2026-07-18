@@ -259,10 +259,11 @@ def home():
             hn = HUMAN.get(raw, raw)
             other[hn] = other.get(hn, 0.0) + s
             continue
-        if n.startswith("ФОТ · "):
-            d = DIR_OF.get(n[6:].strip().lower(), n[6:].strip())
-            dirs.setdefault(d, {}).setdefault("ФОТ", 0.0)
-            dirs[d]["ФОТ"] += s
+        if " · " in n and not n.startswith("("):
+            comp, dname = n.split(" · ", 1)          # «ФОТ · Полигон», «Налоги · Офис (АУП)» …
+            d = DIR_OF.get(dname.strip().lower(), dname.strip())
+            dirs.setdefault(d, {}).setdefault(comp.strip(), 0.0)
+            dirs[d][comp.strip()] += s
             continue
         if n.startswith("("):
             other[n.strip("()")] = other.get(n.strip("()"), 0.0) + s
