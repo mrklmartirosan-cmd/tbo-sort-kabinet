@@ -238,21 +238,65 @@ def home():
     cat_rows = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items) \
                or "<div class=muted>нет данных</div>"
 
-    # НАПРАВЛЕНИЯ — что куда пошло (из 1С, лист «Направления_1С»)
+    # НАПРАВЛЕНИЯ — карточки по 3 направлениям (ФОТ+материалы), внутренние перекладки скрыты
     np_items = naprav.get(sel, [])
-    real = [(n, s, note) for n, s, note in np_items if not n.startswith("(") and "ВЫРУЧКА" not in n.upper()]
-    unassigned = [(n, s, note) for n, s, note in np_items if n.startswith("(")]
+    DIR_OF = {"полигон": "Полигон", "сортировочный комплекс": "Сортировочный комплекс",
+              "офис (ауп)": "Офис (АУП)", "основное подразделение": "Офис (АУП)"}
+    HUMAN = {"ОтражениеНалоговойОтчетностиВРеглУчете": "Налоги и взносы",
+             "ПоступлениеТоваровУслуг": "Услуги и ТМЦ поставщиков",
+             "РеализацияТоваровУслуг": "Себестоимость реализации",
+             "СписаниеТоваров": "Списания материалов"}
+    INTERNAL = ("ДвижениеНЗП", "ЗакрытиеМесяца")   # внутренние перекладки затрат — не операционка
+    dirs = {}      # направление -> {"ФОТ": x, "Материалы": y}
+    other = {}     # человеческое имя -> сумма (не разнесено)
+    for n, s, _ in np_items:
+        if "ВЫРУЧКА" in n.upper():
+            continue
+        if n.startswith("(без подразд.:"):
+            raw = n.split(":", 1)[1].strip(" )")
+            if raw in INTERNAL:
+                continue
+            hn = HUMAN.get(raw, raw)
+            other[hn] = other.get(hn, 0.0) + s
+            continue
+        if n.startswith("ФОТ · "):
+            d = DIR_OF.get(n[6:].strip().lower(), n[6:].strip())
+            dirs.setdefault(d, {}).setdefault("ФОТ", 0.0)
+            dirs[d]["ФОТ"] += s
+            continue
+        if n.startswith("("):
+            other[n.strip("()")] = other.get(n.strip("()"), 0.0) + s
+            continue
+        d = DIR_OF.get(n.strip().lower(), n.strip())
+        dirs.setdefault(d, {}).setdefault("Материалы", 0.0)
+        dirs[d]["Материалы"] += s
     if np_items:
-        rn = "".join(f"<div class=r2><span class=nm>{n}</span><span class=mn>{_sp(s)} ₸</span></div>" for n, s, _ in real) \
-             or "<div class=muted>размеченных затрат нет</div>"
-        ru = ""
-        if unassigned:
-            ru = ("<div class=ph style='margin-top:14px'>ещё не размечено в 1С (нужна дисциплина ввода):</div>"
-                  + "".join(f"<div class=r2><span class=nm style='color:var(--dim)'>{n}</span>"
-                            f"<span class=mn style='color:var(--dim)'>{_sp(s)} ₸</span></div>" for n, s, _ in unassigned))
-        naprav_html = (f"<section id=sec-naprav class=sec><div class=panel><h2><i class='ti ti-chart-pie'></i>"
-                       f"Направления — что куда пошло</h2><div class=ph>{sel} · затраты из проводок 1С, "
-                       f"разрез по подразделениям (списания — по ценам закупа)</div>{rn}{ru}</div></section>")
+        order = ["Полигон", "Сортировочный комплекс", "Офис (АУП)"]
+        cards = []
+        for d in order + [x for x in dirs if x not in order]:
+            if d not in dirs:
+                continue
+            parts = dirs[d]; tot = sum(parts.values())
+            rows = "".join(f"<div class=r2><span class=nm style='color:var(--muted)'>{k}</span>"
+                           f"<span class=mn>{_sp(v)} ₸</span></div>"
+                           for k, v in sorted(parts.items(), key=lambda x: -x[1]))
+            cards.append(f"<div class=card><div class='val green'>{_sp(tot)}<span class=unit>₸</span></div>"
+                         f"<div class=lbl style='margin-bottom:8px'>{d}</div>{rows}</div>")
+        oth_total = sum(other.values())
+        oth = ""
+        if other:
+            oth = (f"<div class=panel style='margin-top:14px'><h2><i class='ti ti-help-circle'></i>"
+                   f"Не разнесено по направлениям · {_sp(oth_total)} ₸</h2>"
+                   f"<div class=ph>налоги — кандидат на раскидку пропорционально ФОТ; услуги — по контрагентам</div>"
+                   + "".join(f"<div class=r2><span class=nm style='color:var(--muted)'>{k}</span>"
+                             f"<span class=mn style='color:var(--muted)'>{_sp(v)} ₸</span></div>"
+                             for k, v in sorted(other.items(), key=lambda x: -x[1])) + "</div>")
+        naprav_html = (f"<section id=sec-naprav class=sec>"
+                       f"<div class=panel><h2><i class='ti ti-chart-pie'></i>Направления — что куда пошло</h2>"
+                       f"<div class=ph>{sel} · операционные затраты из 1С (ФОТ по сотрудникам, материалы по "
+                       f"ценам закупа); внутренние перекладки НЗП/закрытия скрыты</div>"
+                       f"<div class=cards style='margin-bottom:0'>{cards and ''.join(cards) or ''}</div></div>"
+                       f"{oth}</section>")
     else:
         naprav_html = ("<section id=sec-naprav class=sec><div class=panel><h2><i class='ti ti-chart-pie'></i>"
                        "Направления</h2><div class=muted>нет данных — в боте прогони /podr ММ.ГГГГ</div></div></section>")
