@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Кабинет руководителя ТОО «Рудный-АБАТ-2006» (полигон + сортировка).
-Читает хаб Абата (пишет бот abat-bot), ничего не пишет. Стиль — как кабинет ЛТ/Едиля.
-Разделы: ОБЗОР (KPI) → ПОЛИГОН (приём тонн по компаниям, «Рейсы») → РАСХОДЫ (Расходы_1С) → КАССА.
+Читает хаб Абата (пишет бот abat-bot), ничего не пишет. Стиль — как кабинет ЛТ.
+Разделы переключаются как страницы (JS): Обзор / Полигон / Расходы / Касса.
 env: SPREADSHEET_ID (хаб Абата), GOOGLE_CREDENTIALS (ltrading-bot@l-trading), KAB_LOGIN, KAB_PASSWORD.
 """
 import os, json, time
@@ -112,75 +112,78 @@ def read_kassa():
 def _sp(n): return f"{round(n):,}".replace(",", " ")
 def _spt(n): return f"{n:,.1f}".replace(",", " ")
 
+_NAV = [("obzor", "ti-layout-grid", "Обзор"), ("polygon", "ti-building-factory-2", "Полигон"),
+        ("rashody", "ti-credit-card", "Расходы"), ("kassa", "ti-cash", "Касса")]
+
 PAGE = r"""<!DOCTYPE html><html lang=ru><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>Абат 2006 · Кабинет руководителя</title>
 <link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel=stylesheet>
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css" rel=stylesheet>
 <style>
 :root{--bg:#0a1410;--panel:#11201a;--panel2:#16281f;--line:#1f322a;--txt:#eaf6ef;--muted:#9db4a8;--dim:#6f8c80;
---green:#a4c91e;--green-d:#7c9617;--gold:#d9b56a;--red:#e8705a;--blu:#5ab0e0;
---mono:'JetBrains Mono',ui-monospace,Consolas,monospace;--sans:'Montserrat',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+--green:#a4c91e;--red:#e8705a;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Montserrat',system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-a{color:inherit;text-decoration:none}
 .layout{display:flex;min-height:100vh}
 .side{width:212px;background:#0d1a15;padding:22px 14px;flex-shrink:0;border-right:1px solid var(--line);position:sticky;top:0;height:100vh}
-.brand{display:flex;align-items:center;gap:10px;margin-bottom:2px}
-.brand .logo{width:38px;height:38px;border-radius:11px;background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:800}
-.brand .name{font-size:16px;font-weight:800;letter-spacing:.03em}.brand .name .dot{color:var(--green)}
+.brand{display:flex;align-items:center;gap:10px}.brand .logo{width:38px;height:38px;border-radius:11px;background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:800}
+.brand .name{font-size:16px;font-weight:800;letter-spacing:.03em}.brand .name i{color:var(--green)}
 .brand-sub{font-size:11px;color:var(--dim);margin:3px 0 26px 3px}
 .nav-title{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em;margin:0 0 10px 6px}
-.nav-btn{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;border-radius:10px;color:var(--muted);font-size:14px;font-weight:600;margin-bottom:4px;transition:.15s}
+.nav-btn{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;border-radius:10px;color:var(--muted);font-size:14px;font-weight:600;margin-bottom:4px;cursor:pointer;transition:.15s;border:none;background:none;font-family:var(--sans)}
 .nav-btn:hover{color:var(--txt);background:#10201a}.nav-btn.on{background:var(--panel2);color:var(--green)}
-.nav-btn svg{width:19px;height:19px;flex-shrink:0}
+.nav-btn i{font-size:19px}
 .main{flex:1;padding:24px 30px;min-width:0;max-width:1120px}
 .top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
 .hi{font-size:22px;font-weight:800}
 select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;font-family:var(--sans);cursor:pointer}
 select option{background:var(--panel)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-.card .val{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.01em}
-.card .val.green{color:var(--green)}.card .val.red{color:var(--red)}.card .val.blu{color:var(--blu)}
-.card .unit{font-size:14px;color:var(--muted);margin-left:3px;font-family:var(--sans)}
-.card .lbl{color:var(--muted);font-size:12.5px;margin-top:9px}
+.card .val{font-family:var(--mono);font-size:26px;font-weight:700}.card .val.green{color:var(--green)}.card .val.red{color:var(--red)}
+.card .unit{font-size:14px;color:var(--muted);margin-left:3px}.card .lbl{color:var(--muted);font-size:12.5px;margin-top:9px}
+.sec{display:none}.sec.on{display:block}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
-.panel h2{font-size:15px;font-weight:700;margin:0 0 3px}.panel .ph{color:var(--dim);font-size:12px;margin-bottom:12px;font-family:var(--mono)}
-.scroll{max-height:360px;overflow-y:auto;margin:0 -6px;padding:0 6px}
+.panel h2{font-size:15px;font-weight:700;margin:0 0 3px}.panel h2 i{color:var(--green);margin-right:6px}
+.panel .ph{color:var(--dim);font-size:12px;margin-bottom:12px;font-family:var(--mono)}
+.scroll{max-height:460px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
-.row{display:grid;grid-template-columns:1fr 90px 128px;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:13.5px}
-.row:last-child{border-bottom:none}.row .nm{font-weight:600}.row .mn{text-align:right;font-family:var(--mono);color:var(--muted)}
-.row .bar{grid-column:1/-1;height:4px;border-radius:3px;background:#0e1b15;overflow:hidden;margin-top:-4px}
-.row2{display:grid;grid-template-columns:1fr 150px;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:13.5px}
-.row2:last-child{border-bottom:none}.row2 .mn{text-align:right;font-family:var(--mono);color:var(--txt);font-weight:600}
-.fill{height:100%;border-radius:3px}
+.rw{padding:9px 2px;border-bottom:1px solid var(--line)}.rw:last-child{border-bottom:none}
+.rw .t{display:flex;justify-content:space-between;font-size:13.5px}.rw .nm{font-weight:600}.rw .mn{font-family:var(--mono);color:var(--muted)}
+.rw .bar{height:4px;border-radius:3px;background:#0e1b15;overflow:hidden;margin-top:5px}.rw .fill{height:100%;border-radius:3px;background:var(--green)}
+.r2{display:flex;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13.5px}.r2:last-child{border-bottom:none}
+.r2 .mn{font-family:var(--mono);font-weight:600}
 .muted{color:var(--muted)}.foot{color:var(--dim);font-size:11px;font-family:var(--mono);margin-top:22px}
-.mnav{display:none}
-@media(max-width:760px){.side{display:none}.main{padding:18px}.mnav{display:block}}
 </style></head><body>
 <div class=layout>
 <aside class=side>
-  <div class=brand><div class=logo>А</div><div class=name>Абат 2006<span class=dot>.</span></div></div>
+  <div class=brand><div class=logo>А</div><div class=name>Абат 2006<i class="ti ti-point-filled" style="font-size:10px"></i></div></div>
   <div class=brand-sub>полигон и сортировка</div>
   <div class=nav-title>разделы</div>
-  <a class="nav-btn on" href="#top"><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2><rect x=3 y=3 width=7 height=9 rx=1/><rect x=14 y=3 width=7 height=5 rx=1/><rect x=14 y=12 width=7 height=9 rx=1/><rect x=3 y=16 width=7 height=5 rx=1/></svg>Обзор</a>
-  <a class="nav-btn" href="#polygon"><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>Полигон</a>
-  <a class="nav-btn" href="#rashody"><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2><rect x=2 y=5 width=20 height=14 rx=2/><path d="M2 10h20"/></svg>Расходы</a>
-  <a class="nav-btn" href="#kassa"><svg viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>Касса</a>
+  __NAV__
 </aside>
-<main class=main id=top>
+<main class=main>
   <div class=top><div class=hi>Здравствуйте!</div>__MPICK__</div>
   <div class=cards>__KPIS__</div>
-  __POLYGON__
-  __RASHODY__
-  __KASSA__
+  __SECTIONS__
   <div class=foot>Данные из 1С и весовой полигона через хаб · обновление ~1 мин</div>
 </main>
-</div></body></html>"""
+</div>
+<script>
+function showSec(id){
+  document.querySelectorAll('.sec').forEach(function(s){s.classList.toggle('on',s.id==='sec-'+id)});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.toggle('on',b.dataset.sec===id)});
+  try{localStorage.setItem('abat_sec',id)}catch(e){}
+}
+(function(){var s='obzor';try{s=localStorage.getItem('abat_sec')||'obzor'}catch(e){}
+ if(!document.getElementById('sec-'+s))s='obzor';showSec(s)})();
+</script>
+</body></html>"""
 
 def render(**kw):
     html = PAGE
-    for t in ("MPICK", "KPIS", "POLYGON", "RASHODY", "KASSA"):
+    for t in ("NAV", "MPICK", "KPIS", "SECTIONS"):
         html = html.replace("__%s__" % t, kw.get(t.lower(), ""))
     return html
 
@@ -192,8 +195,10 @@ def health(): return "ok"
 def home():
     reisy = read_reisy(); rashody = read_rashody(); kassa = read_kassa()
     months = sorted(set(list(reisy) + list(rashody) + list(kassa)), key=_mkey_sort, reverse=True)
+    nav = "".join(f"<button class=nav-btn data-sec={sid} onclick=\"showSec('{sid}')\"><i class='ti {ic}'></i>{nm}</button>"
+                  for sid, ic, nm in _NAV)
     if not months:
-        return render(polygon="<div class=panel><div class=muted>В хабе ещё нет данных. В боте: /rashody1c ММ.ГГГГ и дождись синка полигона.</div></div>")
+        return render(nav=nav, sections="<div class=sec on id=sec-obzor><div class=panel><div class=muted>В хабе ещё нет данных.</div></div></div>")
     sel = request.args.get("m") or months[0]
     if sel not in months: sel = months[0]
 
@@ -210,38 +215,36 @@ def home():
         f"<div class=card><div class=val red>{_sp(rashod_total)}<span class=unit>₸</span></div><div class=lbl>Расходы (чистые)</div></div>"
         f"<div class=card><div class=val>{_sp(k['приход'])}<span class=unit>₸</span></div><div class=lbl>Касса-1 приход</div></div>")
 
-    # ПОЛИГОН — компании × тонны
     pol_items = sorted(pol.items(), key=lambda x: -x[1][0])
     mx = max([v[0] for _, v in pol_items], default=1)
-    if pol_items:
-        rows = "".join(
-            f"<div class=row><span class=nm>{o}</span><span class=mn>{v[1]} рейс</span>"
-            f"<span class=mn>{_spt(v[0])} т</span>"
-            f"<span class=bar><span class=fill style='width:{max(3,v[0]/mx*100):.0f}%;background:var(--green)'></span></span></div>"
-            for o, v in pol_items)
-        polygon = (f"<div class=panel id=polygon><h2>🏭 Полигон — приём отходов по компаниям</h2>"
-                   f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div>"
-                   f"<div class=scroll>{rows}</div></div>")
-    else:
-        polygon = ("<div class=panel id=polygon><h2>🏭 Полигон — приём по компаниям</h2>"
-                   "<div class=muted>за этот месяц рейсов в хабе нет (весовая синхронизируется раз в час)</div></div>")
+    pol_rows = "".join(
+        f"<div class=rw><div class=t><span class=nm>{o}</span><span class=mn>{v[1]} рейс · {_spt(v[0])} т</span></div>"
+        f"<div class=bar><span class=fill style='width:{max(3,v[0]/mx*100):.0f}%'></span></div></div>"
+        for o, v in pol_items) or "<div class=muted>за этот месяц рейсов нет (весовая синхронизируется раз в час)</div>"
 
-    # РАСХОДЫ — категории
     cat_items = sorted([(c, v) for c, v in cats.items() if is_expense(c)], key=lambda x: -x[1])
-    if cat_items:
-        rows = "".join(f"<div class=row2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items)
-        rashody_html = (f"<div class=panel id=rashody><h2>💸 Расходы по категориям</h2>"
-                        f"<div class=ph>{sel} · чистые {_sp(rashod_total)} ₸ (без переводов группе/аффилированным)</div>"
-                        f"<div class=scroll>{rows}</div></div>")
-    else:
-        rashody_html = "<div class=panel id=rashody><h2>💸 Расходы</h2><div class=muted>нет данных за месяц</div></div>"
+    cat_rows = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items) \
+               or "<div class=muted>нет данных</div>"
 
-    kassa_html = (f"<div class=panel id=kassa><h2>💵 Касса-1 (наличные из 1С)</h2>"
-                  f"<div class=ph>{sel} · внутренние перемещения исключены; Касса-2 — по файлу Светы</div>"
-                  f"<div class=row2><span class=nm>Приход</span><span class=mn>{_sp(k['приход'])} ₸</span></div>"
-                  f"<div class=row2><span class=nm>Расход</span><span class=mn>{_sp(k['расход'])} ₸</span></div></div>")
+    # ОБЗОР — топ по каждому
+    top_pol = "".join(f"<div class=r2><span class=nm>{o}</span><span class=mn>{_spt(v[0])} т</span></div>" for o, v in pol_items[:6]) or "<div class=muted>нет</div>"
+    top_cat = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items[:6]) or "<div class=muted>нет</div>"
 
-    return render(mpick=mpick, kpis=kpis, polygon=polygon, rashody=rashody_html, kassa=kassa_html)
+    sections = (
+        f"<section id=sec-obzor class=sec>"
+        f"<div class=panel><h2><i class='ti ti-building-factory-2'></i>Топ компаний на полигоне · {sel}</h2><div class=ph>всего {_spt(tons)} т за {trips} рейсов</div>{top_pol}</div>"
+        f"<div class=panel><h2><i class='ti ti-credit-card'></i>Крупнейшие расходы · {sel}</h2><div class=ph>чистые {_sp(rashod_total)} ₸</div>{top_cat}</div>"
+        f"</section>"
+        f"<section id=sec-polygon class=sec><div class=panel><h2><i class='ti ti-building-factory-2'></i>Полигон — приём отходов по компаниям</h2>"
+        f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div><div class=scroll>{pol_rows}</div></div></section>"
+        f"<section id=sec-rashody class=sec><div class=panel><h2><i class='ti ti-credit-card'></i>Расходы по категориям</h2>"
+        f"<div class=ph>{sel} · чистые {_sp(rashod_total)} ₸ (без переводов группе/аффилированным)</div><div class=scroll>{cat_rows}</div></div></section>"
+        f"<section id=sec-kassa class=sec><div class=panel><h2><i class='ti ti-cash'></i>Касса-1 (наличные из 1С)</h2>"
+        f"<div class=ph>{sel} · внутренние перемещения исключены; Касса-2 — по файлу Светы</div>"
+        f"<div class=r2><span class=nm>Приход</span><span class=mn>{_sp(k['приход'])} ₸</span></div>"
+        f"<div class=r2><span class=nm>Расход</span><span class=mn>{_sp(k['расход'])} ₸</span></div></div></section>")
+
+    return render(nav=nav, mpick=mpick, kpis=kpis, sections=sections)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
