@@ -113,7 +113,19 @@ def _sp(n): return f"{round(n):,}".replace(",", " ")
 def _spt(n): return f"{n:,.1f}".replace(",", " ")
 
 _NAV = [("obzor", "ti-layout-grid", "Обзор"), ("polygon", "ti-building-factory-2", "Полигон"),
-        ("rashody", "ti-credit-card", "Расходы"), ("kassa", "ti-cash", "Касса")]
+        ("naprav", "ti-chart-pie", "Направления"), ("rashody", "ti-credit-card", "Расходы"),
+        ("kassa", "ti-cash", "Касса")]
+
+def read_naprav():
+    """«Направления_1С»: Месяц|Направление|Сумма|Примечание → {месяц: [(направление, сумма, примечание)]}"""
+    rows = ws_values("Направления_1С"); out = {}
+    for r in rows[1:]:
+        if len(r) < 3 or not str(r[0]).strip(): continue
+        mon = str(r[0]).strip(); nm = str(r[1]).strip(); s = num(r[2])
+        note = str(r[3]).strip() if len(r) > 3 else ""
+        if not nm: continue
+        out.setdefault(mon, []).append((nm, s, note))
+    return out
 
 PAGE = r"""<!DOCTYPE html><html lang=ru><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
@@ -193,8 +205,8 @@ def health(): return "ok"
 @app.route("/")
 @requires_auth
 def home():
-    reisy = read_reisy(); rashody = read_rashody(); kassa = read_kassa()
-    months = sorted(set(list(reisy) + list(rashody) + list(kassa)), key=_mkey_sort, reverse=True)
+    reisy = read_reisy(); rashody = read_rashody(); kassa = read_kassa(); naprav = read_naprav()
+    months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav)), key=_mkey_sort, reverse=True)
     nav = "".join(f"<button class=nav-btn data-sec={sid} onclick=\"showSec('{sid}')\"><i class='ti {ic}'></i>{nm}</button>"
                   for sid, ic, nm in _NAV)
     if not months:
@@ -226,6 +238,25 @@ def home():
     cat_rows = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items) \
                or "<div class=muted>нет данных</div>"
 
+    # НАПРАВЛЕНИЯ — что куда пошло (из 1С, лист «Направления_1С»)
+    np_items = naprav.get(sel, [])
+    real = [(n, s, note) for n, s, note in np_items if not n.startswith("(") and "ВЫРУЧКА" not in n.upper()]
+    unassigned = [(n, s, note) for n, s, note in np_items if n.startswith("(")]
+    if np_items:
+        rn = "".join(f"<div class=r2><span class=nm>{n}</span><span class=mn>{_sp(s)} ₸</span></div>" for n, s, _ in real) \
+             or "<div class=muted>размеченных затрат нет</div>"
+        ru = ""
+        if unassigned:
+            ru = ("<div class=ph style='margin-top:14px'>ещё не размечено в 1С (нужна дисциплина ввода):</div>"
+                  + "".join(f"<div class=r2><span class=nm style='color:var(--dim)'>{n}</span>"
+                            f"<span class=mn style='color:var(--dim)'>{_sp(s)} ₸</span></div>" for n, s, _ in unassigned))
+        naprav_html = (f"<section id=sec-naprav class=sec><div class=panel><h2><i class='ti ti-chart-pie'></i>"
+                       f"Направления — что куда пошло</h2><div class=ph>{sel} · затраты из проводок 1С, "
+                       f"разрез по подразделениям (списания — по ценам закупа)</div>{rn}{ru}</div></section>")
+    else:
+        naprav_html = ("<section id=sec-naprav class=sec><div class=panel><h2><i class='ti ti-chart-pie'></i>"
+                       "Направления</h2><div class=muted>нет данных — в боте прогони /podr ММ.ГГГГ</div></div></section>")
+
     # ОБЗОР — топ по каждому
     top_pol = "".join(f"<div class=r2><span class=nm>{o}</span><span class=mn>{_spt(v[0])} т</span></div>" for o, v in pol_items[:6]) or "<div class=muted>нет</div>"
     top_cat = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items[:6]) or "<div class=muted>нет</div>"
@@ -237,6 +268,7 @@ def home():
         f"</section>"
         f"<section id=sec-polygon class=sec><div class=panel><h2><i class='ti ti-building-factory-2'></i>Полигон — приём отходов по компаниям</h2>"
         f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div><div class=scroll>{pol_rows}</div></div></section>"
+        f"{naprav_html}"
         f"<section id=sec-rashody class=sec><div class=panel><h2><i class='ti ti-credit-card'></i>Расходы по категориям</h2>"
         f"<div class=ph>{sel} · чистые {_sp(rashod_total)} ₸ (без переводов группе/аффилированным)</div><div class=scroll>{cat_rows}</div></div></section>"
         f"<section id=sec-kassa class=sec><div class=panel><h2><i class='ti ti-cash'></i>Касса-1 (наличные из 1С)</h2>"
