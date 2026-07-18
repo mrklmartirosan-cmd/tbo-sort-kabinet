@@ -154,13 +154,21 @@ h1{font-size:22px;margin:0}.sub{color:var(--mut);font-size:13px}
 @media(max-width:720px){.kpis{grid-template-columns:1fr}.bar{grid-template-columns:130px 1fr 96px}}
 </style></head><body><div class=wrap>
 <h1>Абат 2006 · Полигон и сортировка</h1><div class=sub>кабинет руководителя · ТОО «Рудный-АБАТ-2006»</div>
-{banner}
-<div class=tabs>{tabs}</div>
-<div class=kpis>{kpis}</div>
-<div class=sec><h2>Расходы по категориям · {mon}</h2>{rashody}</div>
-{vyr}
+__BANNER__
+<div class=tabs>__TABS__</div>
+<div class=kpis>__KPIS__</div>
+<div class=sec><h2>Расходы по категориям · __MON__</h2>__RASHODY__</div>
+__VYR__
 <div class=foot>Абат 2006 · кабинет читает хаб (обновление ~1 мин) · v1</div>
 </div></body></html>"""
+
+def render(banner="", tabs="", kpis="", mon="", rashody="", vyr=""):
+    # НЕ .format(): в CSS есть { } — заменяем по токенам, скобки стилей не трогаем.
+    html = PAGE
+    for token, val in (("__BANNER__", banner), ("__TABS__", tabs), ("__KPIS__", kpis),
+                       ("__MON__", mon), ("__RASHODY__", rashody), ("__VYR__", vyr)):
+        html = html.replace(token, val)
+    return html
 
 def _sp(n):
     return f"{round(n):,}".replace(",", " ") + " ₸"
@@ -186,8 +194,8 @@ def home():
     vyr = read_vyruchka()
     months = sorted(set(list(by_cat) + list(kassa) + list(vyr)), key=_mkey)
     if not months:
-        return PAGE.format(banner="<div class=banner>В хабе ещё нет данных. Запусти в боте /rashody1c ММ.ГГГГ.</div>",
-                           tabs="", kpis="", mon="—", rashody="<div class=muted>нет данных</div>", vyr="")
+        return render(banner="<div class=banner>В хабе ещё нет данных. Запусти в боте /rashody1c ММ.ГГГГ.</div>",
+                      mon="—", rashody="<div class=muted>нет данных</div>")
     sel = request.args.get("m") or months[-1]
     if sel not in months:
         sel = months[-1]
@@ -212,7 +220,7 @@ def home():
 
     banner = ("<div class=banner>✅ Данные из 1С через хаб (расходы сверены до тенге). "
               "Разрез по 3 направлениям и выручка — по мере записи ботом.</div>")
-    return PAGE.format(banner=banner, tabs=tabs, kpis=kpis, mon=sel, rashody=rashody, vyr=vyr_html)
+    return render(banner=banner, tabs=tabs, kpis=kpis, mon=sel, rashody=rashody, vyr=vyr_html)
 
 @app.route("/health")
 def health():
