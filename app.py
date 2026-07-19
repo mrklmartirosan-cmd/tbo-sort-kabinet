@@ -149,6 +149,7 @@ def read_naprav():
 PAGE = r"""<!DOCTYPE html><html lang=ru><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>Абат 2006 · Кабинет руководителя</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 184'><defs><clipPath id='c' clipPathUnits='userSpaceOnUse'><path clip-rule='evenodd' d='M100 18 L180 166 L20 166 Z M100 142 L146 166 L54 166 Z M100 46 L134 120 L66 120 Z'/></clipPath></defs><rect x='0' y='18' width='200' height='68' fill='%2333a15c' clip-path='url(%23c)'/><rect x='0' y='86' width='200' height='42' fill='%231c87a6' clip-path='url(%23c)'/><rect x='0' y='128' width='200' height='42' fill='%23185e9e' clip-path='url(%23c)'/></svg>">
 <link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel=stylesheet>
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css" rel=stylesheet>
