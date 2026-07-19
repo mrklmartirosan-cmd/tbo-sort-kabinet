@@ -14,7 +14,10 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "")
 KAB_LOGIN = os.environ.get("KAB_LOGIN", "")
 KAB_PASSWORD = os.environ.get("KAB_PASSWORD", "")
 
+MSK_SHEET_ID = os.environ.get("MSK_SHEET_ID", "1qoKYiVKBQK97_wtzJNWOHfywevGOMNz8lD4r_854Tp8")
+
 _BOOK = None
+_BOOK_MSK = None
 _CACHE = {}
 _TTL = 60
 
@@ -25,19 +28,33 @@ def get_book():
         _BOOK = gspread.service_account_from_dict(creds).open_by_key(SPREADSHEET_ID)
     return _BOOK
 
-def ws_values(title):
+def get_book_msk():
+    """Операционная таблица весовой/сортировки Абата (Viewer у робота). Кабинет только читает."""
+    global _BOOK_MSK
+    if _BOOK_MSK is None:
+        creds = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+        _BOOK_MSK = gspread.service_account_from_dict(creds).open_by_key(MSK_SHEET_ID)
+    return _BOOK_MSK
+
+def _ws_values_of(book_fn, cache_key, title):
     now = time.time()
-    hit = _CACHE.get(title)
+    hit = _CACHE.get(cache_key)
     if hit and now - hit[0] < _TTL:
         return hit[1]
     try:
-        vals = get_book().worksheet(title).get_all_values()
+        vals = book_fn().worksheet(title).get_all_values()
     except gspread.WorksheetNotFound:
         vals = []
     except Exception:
         return hit[1] if hit else []
-    _CACHE[title] = (now, vals)
+    _CACHE[cache_key] = (now, vals)
     return vals
+
+def ws_values(title):
+    return _ws_values_of(get_book, "hub:" + title, title)
+
+def ws_values_msk(title):
+    return _ws_values_of(get_book_msk, "msk:" + title, title)
 
 def _check(l, p): return bool(KAB_LOGIN) and l == KAB_LOGIN and p == KAB_PASSWORD
 def requires_auth(f):
@@ -132,8 +149,39 @@ def _sp(n): return f"{round(n):,}".replace(",", " ")
 def _spt(n): return f"{n:,.1f}".replace(",", " ")
 
 _NAV = [("obzor", "ti-layout-grid", "Обзор"), ("polygon", "ti-building-factory-2", "Полигон"),
-        ("naprav", "ti-chart-pie", "Направления"), ("rashody", "ti-credit-card", "Расходы"),
-        ("kassa", "ti-cash", "Касса")]
+        ("sort", "ti-recycle", "Сортировка"), ("naprav", "ti-chart-pie", "Направления"),
+        ("rashody", "ti-credit-card", "Расходы"), ("kassa", "ti-cash", "Касса")]
+
+def read_sortirovka():
+    """Из операционной таблицы: Сортировка_виды (выпуск кг), Отгрузка (продажи кг), Цены, Остатки.
+    → ({месяц:{вид:кг}}, {месяц:{вид:(кг,₸)}}, [(вид,кг,обновлено)])"""
+    prices = {}
+    for r in ws_values_msk("Цены")[1:]:
+        if len(r) >= 2 and str(r[0]).strip():
+            prices[str(r[0]).strip().lower()] = num(r[1])
+    vypusk = {}
+    for r in ws_values_msk("Сортировка_виды")[1:]:
+        if len(r) < 4 or not str(r[0]).strip():
+            continue
+        mon = iso_month(r[0]); vid = str(r[2]).strip() or "—"; kg = num(r[3])
+        if kg <= 0:
+            continue
+        vypusk.setdefault(mon, {}); vypusk[mon][vid] = vypusk[mon].get(vid, 0.0) + kg
+    otgruzka = {}
+    for r in ws_values_msk("Отгрузка")[1:]:
+        if len(r) < 3 or not str(r[0]).strip():
+            continue
+        mon = iso_month(r[0]); vid = str(r[1]).strip() or "—"; kg = num(r[2])
+        if kg <= 0:
+            continue
+        price = prices.get(vid.lower(), 0.0)
+        cur = otgruzka.setdefault(mon, {}).setdefault(vid, [0.0, 0.0])
+        cur[0] += kg; cur[1] += kg * price
+    ostatki = []
+    for r in ws_values_msk("Остатки")[1:]:
+        if len(r) >= 2 and str(r[0]).strip():
+            ostatki.append((str(r[0]).strip(), num(r[1]), str(r[2]).strip() if len(r) > 2 else ""))
+    return vypusk, otgruzka, ostatki
 
 def read_naprav():
     """«Направления_1С»: Месяц|Направление|Сумма|Примечание → {месяц: [(направление, сумма, примечание)]}"""
@@ -230,7 +278,11 @@ def health(): return "ok"
 def home():
     reisy = read_reisy(); rashody = read_rashody(); kassa = read_kassa(); naprav = read_naprav()
     svod = read_kassa_svod()
-    months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav) + list(svod)),
+    try:
+        vypusk, otgruzka, ostatki = read_sortirovka()
+    except Exception:
+        vypusk, otgruzka, ostatki = {}, {}, []
+    months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav) + list(svod) + list(vypusk)),
                     key=_mkey_sort, reverse=True)
     nav = "".join(f"<button class=nav-btn data-sec={sid} onclick=\"showSec('{sid}')\"><i class='ti {ic}'></i>{nm}</button>"
                   for sid, ic, nm in _NAV)
@@ -375,6 +427,27 @@ def home():
         naprav_html = ("<section id=sec-naprav class=sec><div class=panel><h2><i class='ti ti-chart-pie'></i>"
                        "Направления</h2><div class=muted>нет данных — в боте прогони /podr ММ.ГГГГ</div></div></section>")
 
+    # СОРТИРОВКА — выпуск/отгрузка/остатки + себестоимость на кг
+    vy = vypusk.get(sel, {}); og = otgruzka.get(sel, {})
+    vy_kg = sum(vy.values())
+    sort_zatr = sum(v for d, parts in dirs.items() if d == "Сортировочный комплекс" for v in parts.values())
+    rows_v = "".join(f"<div class=r2><span class=nm>{k}</span><span class=mn>{_sp(v)} кг</span></div>"
+                     for k, v in sorted(vy.items(), key=lambda x: -x[1])) or "<div class=muted>выпуска за месяц нет</div>"
+    rows_o = "".join(f"<div class=r2><span class=nm>{k}</span><span class=mn>{_sp(v[0])} кг · {_sp(v[1])} ₸</span></div>"
+                     for k, v in sorted(og.items(), key=lambda x: -x[1][1])) or "<div class=muted>отгрузок за месяц нет</div>"
+    rows_s = "".join(f"<div class=r2><span class=nm>{k}</span><span class=mn>{_sp(v)} кг</span></div>"
+                     for k, v, _u in ostatki if v > 0) or "<div class=muted>склад пуст</div>"
+    sebeskg = f"{sort_zatr / vy_kg:,.0f}".replace(",", " ") + " ₸/кг" if (vy_kg > 0 and sort_zatr > 0) else "—"
+    sort_html = (
+        f"<section id=sec-sort class=sec>"
+        f"<div class=panel><h2><i class='ti ti-recycle'></i>Выпуск вторсырья · {sel}</h2>"
+        f"<div class=ph>лист «Сортировка_виды» весовой · всего {_sp(vy_kg)} кг · затраты направления ÷ выпуск = {sebeskg}</div>"
+        f"<div class=scroll>{rows_v}</div></div>"
+        f"<div class=panel><h2><i class='ti ti-truck-loading'></i>Отгрузка вторсырья · {sel}</h2>"
+        f"<div class=ph>кг × прайс листа «Цены» (расчётно)</div>{rows_o}</div>"
+        f"<div class=panel><h2><i class='ti ti-stack-2'></i>Остатки на складе</h2>"
+        f"<div class=ph>лист «Остатки» весовой (текущие)</div>{rows_s}</div></section>")
+
     # ОБЗОР — топ по каждому
     top_pol = "".join(f"<div class=r2><span class=nm>{o}</span><span class=mn>{_spt(v[0])} т</span></div>" for o, v in pol_items[:6]) or "<div class=muted>нет</div>"
     top_cat = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items[:6]) or "<div class=muted>нет</div>"
@@ -386,6 +459,7 @@ def home():
         f"</section>"
         f"<section id=sec-polygon class=sec><div class=panel><h2><i class='ti ti-building-factory-2'></i>Полигон — приём отходов по компаниям</h2>"
         f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div><div class=scroll>{pol_rows}</div></div></section>"
+        f"{sort_html}"
         f"{naprav_html}"
         f"<section id=sec-rashody class=sec><div class=panel><h2><i class='ti ti-credit-card'></i>Расходы по категориям</h2>"
         f"<div class=ph>{sel} · чистые {_sp(rashod_total)} ₸ (без переводов группе/аффилированным)</div><div class=scroll>{cat_rows}</div></div></section>"
