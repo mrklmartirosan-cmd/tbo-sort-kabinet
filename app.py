@@ -152,6 +152,34 @@ _NAV = [("obzor", "ti-layout-grid", "Обзор"), ("polygon", "ti-building-fact
         ("sort", "ti-recycle", "Сортировка"), ("naprav", "ti-chart-pie", "Направления"),
         ("rashody", "ti-credit-card", "Расходы"), ("kassa", "ti-cash", "Касса")]
 
+def _norm_org(s):
+    """Нормализация имени организации для матча с тарифами: без ТОО/ИП/АО, кавычек, знаков."""
+    s = str(s or "").lower()
+    for w in ("тоо", "ип", "ао", "«", "»", '"', "'", ".", ",", "(", ")"):
+        s = s.replace(w, " ")
+    return "".join(ch for ch in s if ch.isalnum())
+
+def read_tarify():
+    """«Тарифы» весовой: норм.имя → тариф строй ₸/т (колонка ТБО пустая — тарифицируется строй)."""
+    out = {}
+    for r in ws_values_msk("Тарифы")[1:]:
+        if len(r) < 3 or not str(r[0]).strip():
+            continue
+        t = num(r[2]) or num(r[1])
+        if t > 0:
+            out[_norm_org(r[0])] = t
+    return out
+
+def tarif_of(org, tarify):
+    """Подбор тарифа: нормализованные имена, совпадение подстрокой (мин. 4 символа)."""
+    n = _norm_org(org)
+    if not n:
+        return 0.0
+    for k, t in tarify.items():
+        if len(k) >= 4 and (k in n or n in k):
+            return t
+    return 0.0
+
 def read_sortirovka():
     """Из операционной таблицы: Сортировка_виды (выпуск кг), Отгрузка (продажи кг), Цены, Остатки.
     → ({месяц:{вид:кг}}, {месяц:{вид:(кг,₸)}}, [(вид,кг,обновлено)])"""
@@ -334,10 +362,24 @@ def home():
 
     pol_items = sorted(pol.items(), key=lambda x: -x[1][0])
     mx = max([v[0] for _, v in pol_items], default=1)
-    pol_rows = "".join(
-        f"<div class=rw><div class=t><span class=nm>{o}</span><span class=mn>{v[1]} рейс · {_spt(v[0])} т</span></div>"
-        f"<div class=bar><span class=fill style='width:{max(3,v[0]/mx*100):.0f}%'></span></div></div>"
-        for o, v in pol_items) or "<div class=muted>за этот месяц рейсов нет (весовая синхронизируется раз в час)</div>"
+    try:
+        tarify = read_tarify()
+    except Exception:
+        tarify = {}
+    bill_total = 0.0
+    pol_rows = ""
+    for o, v in pol_items:
+        t = tarif_of(o, tarify)
+        calc = v[0] * t
+        bill_total += calc
+        extra = f" · к выставл. {_sp(calc)} ₸ ({_sp(t)}/т)" if calc else ""
+        pol_rows += (
+            f"<div class=rw><div class=t><span class=nm>{o}</span><span class=mn>{v[1]} рейс · {_spt(v[0])} т{extra}</span></div>"
+            f"<div class=bar><span class=fill style='width:{max(3,v[0]/mx*100):.0f}%'></span></div></div>")
+    pol_rows = pol_rows or "<div class=muted>за этот месяц рейсов нет (весовая синхронизируется раз в час)</div>"
+    bill_note = (f"<div class=ph style='margin-top:12px'>💰 Расчётно к выставлению по строй-тарифам: "
+                 f"<b>{_sp(bill_total)} ₸</b> — сверить с реализацией 1С (клиенты без тарифа не считаются)</div>"
+                 if bill_total else "")
 
     cat_items = sorted([(c, v) for c, v in cats.items() if is_expense(c)], key=lambda x: -x[1])
     cat_rows = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items) \
@@ -458,7 +500,7 @@ def home():
         f"<div class=panel><h2><i class='ti ti-credit-card'></i>Крупнейшие расходы · {sel}</h2><div class=ph>чистые {_sp(rashod_total)} ₸</div>{top_cat}</div>"
         f"</section>"
         f"<section id=sec-polygon class=sec><div class=panel><h2><i class='ti ti-building-factory-2'></i>Полигон — приём отходов по компаниям</h2>"
-        f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div><div class=scroll>{pol_rows}</div></div></section>"
+        f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div><div class=scroll>{pol_rows}</div>{bill_note}</div></section>"
         f"{sort_html}"
         f"{naprav_html}"
         f"<section id=sec-rashody class=sec><div class=panel><h2><i class='ti ti-credit-card'></i>Расходы по категориям</h2>"
