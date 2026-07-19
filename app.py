@@ -215,6 +215,23 @@ def tarif_of(org, tarify):
             return t
     return 0.0
 
+def read_smeny():
+    """Смены сортировщиков/прессовщиков: {месяц: {'sort': {ФИО:[кг,₸]}, 'press': {ФИО:[кг,₸]}}}."""
+    out = {}
+    for r in ws_values_msk("Смены_Сортировщики")[1:]:
+        if len(r) < 8 or not str(r[0]).strip():
+            continue
+        mon = iso_month(r[0]); fio = str(r[2]).strip() or "—"
+        cur = out.setdefault(mon, {}).setdefault("sort", {}).setdefault(fio, [0.0, 0.0])
+        cur[0] += num(r[3]); cur[1] += num(r[7])
+    for r in ws_values_msk("Смены_Прессовщики")[1:]:
+        if len(r) < 7 or not str(r[0]).strip():
+            continue
+        mon = iso_month(r[0]); fio = str(r[2]).strip() or "—"
+        cur = out.setdefault(mon, {}).setdefault("press", {}).setdefault(fio, [0.0, 0.0])
+        cur[0] += num(r[4]); cur[1] += num(r[6])
+    return out
+
 def read_sortirovka():
     """Из операционной таблицы: Сортировка_виды (выпуск кг), Отгрузка (продажи кг), Цены, Остатки.
     → ({месяц:{вид:кг}}, {месяц:{вид:(кг,₸)}}, [(вид,кг,обновлено)])"""
@@ -349,6 +366,10 @@ def home():
         gsm = read_gsm()
     except Exception:
         gsm = {}
+    try:
+        smeny = read_smeny()
+    except Exception:
+        smeny = {}
     months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav) + list(svod) + list(vypusk)),
                     key=_mkey_sort, reverse=True)
     nav = "".join(f"<button class=nav-btn data-sec={sid} onclick=\"showSec('{sid}')\"><i class='ti {ic}'></i>{nm}</button>"
@@ -519,6 +540,19 @@ def home():
     rows_s = "".join(f"<div class=r2><span class=nm>{k}</span><span class=mn>{_sp(v)} кг</span></div>"
                      for k, v, _u in ostatki if v > 0) or "<div class=muted>склад пуст</div>"
     sebeskg = f"{sort_zatr / vy_kg:,.0f}".replace(",", " ") + " ₸/кг" if (vy_kg > 0 and sort_zatr > 0) else "—"
+    sm = smeny.get(sel, {})
+    def _sm_rows(d):
+        return "".join(f"<div class=r2><span class=nm>{f}</span><span class=mn>{_sp(v[0])} кг · {_sp(v[1])} ₸</span></div>"
+                       for f, v in sorted(d.items(), key=lambda x: -x[1][0])) or "<div class=muted>смен нет</div>"
+    sm_sort = sm.get("sort", {}); sm_press = sm.get("press", {})
+    fot2 = sum(v[1] for v in sm_sort.values()) + sum(v[1] for v in sm_press.values())
+    smeny_html = ""
+    if sm:
+        smeny_html = (
+            f"<div class=panel><h2><i class='ti ti-users'></i>Смены и выработка · {sel}</h2>"
+            f"<div class=ph>сдельный заработок смен (это расшифровка зарплаты «касса-2») · итого {_sp(fot2)} ₸</div>"
+            f"<div class=ph style='margin-top:6px'>Сортировщики</div>{_sm_rows(sm_sort)}"
+            f"<div class=ph style='margin-top:12px'>Прессовщики</div>{_sm_rows(sm_press)}</div>")
     sort_html = (
         f"<section id=sec-sort class=sec>"
         f"<div class=panel><h2><i class='ti ti-recycle'></i>Выпуск вторсырья · {sel}</h2>"
@@ -527,7 +561,8 @@ def home():
         f"<div class=panel><h2><i class='ti ti-truck-loading'></i>Отгрузка вторсырья · {sel}</h2>"
         f"<div class=ph>кг × прайс листа «Цены» (расчётно)</div>{rows_o}</div>"
         f"<div class=panel><h2><i class='ti ti-stack-2'></i>Остатки на складе</h2>"
-        f"<div class=ph>лист «Остатки» весовой (текущие)</div>{rows_s}</div></section>")
+        f"<div class=ph>лист «Остатки» весовой (текущие)</div>{rows_s}</div>"
+        f"{smeny_html}</section>")
 
     # ТЕХНИКА — ГСМ: положено vs выдано
     g = gsm.get(sel, {})
