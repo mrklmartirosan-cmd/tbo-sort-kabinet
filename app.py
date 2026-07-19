@@ -134,17 +134,17 @@ PAGE = r"""<!DOCTYPE html><html lang=ru><head><meta charset=utf-8>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel=stylesheet>
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css" rel=stylesheet>
 <style>
-:root{--bg:#0a1410;--panel:#11201a;--panel2:#16281f;--line:#1f322a;--txt:#eaf6ef;--muted:#9db4a8;--dim:#6f8c80;
---green:#a4c91e;--red:#e8705a;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Montserrat',system-ui,sans-serif}
+:root{--bg:#f4f7f5;--panel:#ffffff;--panel2:#e8f5ee;--line:#e2e9e4;--txt:#22302a;--muted:#6b7d73;--dim:#93a39a;
+--green:#0f9d63;--red:#d9534a;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Montserrat',system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
 .layout{display:flex;min-height:100vh}
-.side{width:212px;background:#0d1a15;padding:22px 14px;flex-shrink:0;border-right:1px solid var(--line);position:sticky;top:0;height:100vh}
+.side{width:212px;background:#ffffff;padding:22px 14px;flex-shrink:0;border-right:1px solid var(--line);position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:10px}.brand .logo{width:38px;height:38px;border-radius:11px;background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:800}
 .brand .name{font-size:16px;font-weight:800;letter-spacing:.03em}.brand .name i{color:var(--green)}
 .brand-sub{font-size:11px;color:var(--dim);margin:3px 0 26px 3px}
 .nav-title{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em;margin:0 0 10px 6px}
 .nav-btn{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;border-radius:10px;color:var(--muted);font-size:14px;font-weight:600;margin-bottom:4px;cursor:pointer;transition:.15s;border:none;background:none;font-family:var(--sans)}
-.nav-btn:hover{color:var(--txt);background:#10201a}.nav-btn.on{background:var(--panel2);color:var(--green)}
+.nav-btn:hover{color:var(--txt);background:#f0f5f1}.nav-btn.on{background:var(--panel2);color:var(--green)}
 .nav-btn i{font-size:19px}
 .main{flex:1;padding:24px 30px;min-width:0;max-width:1120px}
 .top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
@@ -163,14 +163,14 @@ select option{background:var(--panel)}
 .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
 .rw{padding:9px 2px;border-bottom:1px solid var(--line)}.rw:last-child{border-bottom:none}
 .rw .t{display:flex;justify-content:space-between;font-size:13.5px}.rw .nm{font-weight:600}.rw .mn{font-family:var(--mono);color:var(--muted)}
-.rw .bar{height:4px;border-radius:3px;background:#0e1b15;overflow:hidden;margin-top:5px}.rw .fill{height:100%;border-radius:3px;background:var(--green)}
+.rw .bar{height:4px;border-radius:3px;background:#eef2ef;overflow:hidden;margin-top:5px}.rw .fill{height:100%;border-radius:3px;background:var(--green)}
 .r2{display:flex;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13.5px}.r2:last-child{border-bottom:none}
 .r2 .mn{font-family:var(--mono);font-weight:600}
 .muted{color:var(--muted)}.foot{color:var(--dim);font-size:11px;font-family:var(--mono);margin-top:22px}
 </style></head><body>
 <div class=layout>
 <aside class=side>
-  <div class=brand><div class=logo>А</div><div class=name>Абат 2006<i class="ti ti-point-filled" style="font-size:10px"></i></div></div>
+  <div class=brand><div class=logo><svg width="26" height="26" viewBox="0 0 48 48"><path d="M17 14 h9 l-3-4 M31 14 a9 9 0 0 1 6 9 l4-2 M33 34 h-9 l3 4 M17 34 a9 9 0 0 1 -6 -9 l-4 2" fill="none" stroke="#0f9d63" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="24" r="4.5" fill="#0f9d63"/></svg></div><div class=name>Абат 2006<i class="ti ti-point-filled" style="font-size:10px"></i></div></div>
   <div class=brand-sub>полигон и сортировка</div>
   <div class=nav-title>разделы</div>
   __NAV__
