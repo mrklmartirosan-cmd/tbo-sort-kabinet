@@ -109,6 +109,25 @@ def read_kassa():
         elif "расход" in typ or "рко" in typ: out[mon]["расход"] += s
     return out
 
+def read_kassa_svod():
+    """«Касса_свод» (файл Светы, вкл. Кассу-2): Месяц|Раздел|Касса|Статья|Строка|Сумма →
+    {месяц: {'Касса 1': {'приход':x,'расход':y}, 'Касса 2': {...}}}"""
+    rows = ws_values("Касса_свод"); out = {}
+    for r in rows[1:]:
+        if len(r) < 6 or not str(r[0]).strip():
+            continue
+        mon = str(r[0]).strip(); rz = str(r[1]).strip().lower(); ks = str(r[2]).strip() or "Касса ?"
+        s = num(r[5])
+        if not s:
+            continue
+        m = out.setdefault(mon, {})
+        k = m.setdefault(ks, {"приход": 0.0, "расход": 0.0})
+        if "поступ" in rz or "приход" in rz:
+            k["приход"] += s
+        elif "расход" in rz:
+            k["расход"] += s
+    return out
+
 def _sp(n): return f"{round(n):,}".replace(",", " ")
 def _spt(n): return f"{n:,.1f}".replace(",", " ")
 
@@ -206,7 +225,9 @@ def health(): return "ok"
 @requires_auth
 def home():
     reisy = read_reisy(); rashody = read_rashody(); kassa = read_kassa(); naprav = read_naprav()
-    months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav)), key=_mkey_sort, reverse=True)
+    svod = read_kassa_svod()
+    months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav) + list(svod)),
+                    key=_mkey_sort, reverse=True)
     nav = "".join(f"<button class=nav-btn data-sec={sid} onclick=\"showSec('{sid}')\"><i class='ti {ic}'></i>{nm}</button>"
                   for sid, ic, nm in _NAV)
     if not months:
@@ -220,12 +241,17 @@ def home():
     pol = reisy.get(sel, {}); tons = sum(v[0] for v in pol.values()); trips = sum(v[1] for v in pol.values())
     cats = rashody.get(sel, {}); rashod_total = sum(v for c, v in cats.items() if is_expense(c))
     k = kassa.get(sel, {"приход": 0.0, "расход": 0.0})
+    sv = svod.get(sel)
+    if sv:   # слой Светы (вкл. Кассу-2) приоритетнее 1С
+        k = {"приход": sum(v["приход"] for v in sv.values()),
+             "расход": sum(v["расход"] for v in sv.values())}
+    kassa_lbl = "Наличные приход (К1+К2)" if sv else "Касса-1 приход"
 
     kpis = (
         f"<div class=card><div class=val green>{_spt(tons)}<span class=unit>т</span></div><div class=lbl>Принято на полигон</div></div>"
         f"<div class=card><div class=val>{trips}</div><div class=lbl>Рейсов за месяц</div></div>"
         f"<div class=card><div class=val red>{_sp(rashod_total)}<span class=unit>₸</span></div><div class=lbl>Расходы (чистые)</div></div>"
-        f"<div class=card><div class=val>{_sp(k['приход'])}<span class=unit>₸</span></div><div class=lbl>Касса-1 приход</div></div>")
+        f"<div class=card><div class=val>{_sp(k['приход'])}<span class=unit>₸</span></div><div class=lbl>{kassa_lbl}</div></div>")
 
     pol_items = sorted(pol.items(), key=lambda x: -x[1][0])
     mx = max([v[0] for _, v in pol_items], default=1)
@@ -237,6 +263,23 @@ def home():
     cat_items = sorted([(c, v) for c, v in cats.items() if is_expense(c)], key=lambda x: -x[1])
     cat_rows = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items) \
                or "<div class=muted>нет данных</div>"
+
+    # КАССА: приоритет — «Касса_свод» (файл Светы, вкл. Кассу-2), иначе Касса-1 из 1С
+    if sv:
+        rows_k = ""
+        for ks in sorted(sv):
+            v = sv[ks]
+            rows_k += (f"<div class=r2><span class=nm>{ks} · приход</span><span class=mn>{_sp(v['приход'])} ₸</span></div>"
+                       f"<div class=r2><span class=nm>{ks} · расход</span><span class=mn>{_sp(v['расход'])} ₸</span></div>")
+        rows_k += (f"<div class=r2><span class=nm style='font-weight:800'>Всего наличные</span>"
+                   f"<span class=mn style='font-weight:800'>{_sp(k['приход'])} / {_sp(k['расход'])} ₸</span></div>")
+        kassa_html = (f"<div class=panel><h2><i class='ti ti-cash'></i>Наличные — файл экономиста</h2>"
+                      f"<div class=ph>{sel} · Касса-1 официальная + Касса-2; загружено ботом из файла Светы</div>{rows_k}</div>")
+    else:
+        kassa_html = (f"<div class=panel><h2><i class='ti ti-cash'></i>Касса-1 (наличные из 1С)</h2>"
+                      f"<div class=ph>{sel} · внутренние перемещения исключены; Касса-2 появится из файла Светы</div>"
+                      f"<div class=r2><span class=nm>Приход</span><span class=mn>{_sp(k['приход'])} ₸</span></div>"
+                      f"<div class=r2><span class=nm>Расход</span><span class=mn>{_sp(k['расход'])} ₸</span></div></div>")
 
     # НАПРАВЛЕНИЯ — карточки по 3 направлениям (ФОТ+материалы), внутренние перекладки скрыты
     np_items = naprav.get(sel, [])
@@ -319,10 +362,7 @@ def home():
         f"{naprav_html}"
         f"<section id=sec-rashody class=sec><div class=panel><h2><i class='ti ti-credit-card'></i>Расходы по категориям</h2>"
         f"<div class=ph>{sel} · чистые {_sp(rashod_total)} ₸ (без переводов группе/аффилированным)</div><div class=scroll>{cat_rows}</div></div></section>"
-        f"<section id=sec-kassa class=sec><div class=panel><h2><i class='ti ti-cash'></i>Касса-1 (наличные из 1С)</h2>"
-        f"<div class=ph>{sel} · внутренние перемещения исключены; Касса-2 — по файлу Светы</div>"
-        f"<div class=r2><span class=nm>Приход</span><span class=mn>{_sp(k['приход'])} ₸</span></div>"
-        f"<div class=r2><span class=nm>Расход</span><span class=mn>{_sp(k['расход'])} ₸</span></div></div></section>")
+        f"<section id=sec-kassa class=sec>{kassa_html}</section>")
 
     return render(nav=nav, mpick=mpick, kpis=kpis, sections=sections)
 
