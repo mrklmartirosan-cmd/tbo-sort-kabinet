@@ -149,8 +149,43 @@ def _sp(n): return f"{round(n):,}".replace(",", " ")
 def _spt(n): return f"{n:,.1f}".replace(",", " ")
 
 _NAV = [("obzor", "ti-layout-grid", "Обзор"), ("polygon", "ti-building-factory-2", "Полигон"),
-        ("sort", "ti-recycle", "Сортировка"), ("naprav", "ti-chart-pie", "Направления"),
+        ("sort", "ti-recycle", "Сортировка"), ("tech", "ti-truck", "Техника"),
+        ("naprav", "ti-chart-pie", "Направления"),
         ("rashody", "ti-credit-card", "Расходы"), ("kassa", "ti-cash", "Касса")]
+
+def read_gsm():
+    """Путевые листы × Нормы_ГСМ: {месяц: {техника: [кол-во, выдано л, положено л]}}.
+    «Кол-во» путевого = моточасы или рейсы (по режиму); положено = Кол-во × норма(сезон).
+    Сезон: ноя–мар = зима. Норма матчится по подстроке имени техники («Т-130 р721» → «Т-130»)."""
+    normy = {}   # норм.имя → {режим: (зима, лето)}
+    for r in ws_values_msk("Нормы_ГСМ")[1:]:
+        if len(r) < 5 or not str(r[0]).strip():
+            continue
+        nm = _norm_org(r[0]); rez = str(r[2]).strip().lower()
+        normy.setdefault(nm, {})[rez] = (num(r[3]), num(r[4]))
+    out = {}
+    for r in ws_values_msk("Путевые_листы")[1:]:
+        if len(r) < 8 or not str(r[0]).strip():
+            continue
+        mon = iso_month(r[0])
+        try:
+            mo = int(str(r[0]).strip()[5:7])
+        except (ValueError, IndexError):
+            mo = 0
+        winter = mo in (11, 12, 1, 2, 3)
+        teh = str(r[2]).strip(); rez = str(r[5]).strip().lower()
+        qty = num(r[6]); vydano = num(r[7])
+        norm = 0.0
+        tn = _norm_org(teh)
+        for k, rr in normy.items():
+            if len(k) >= 3 and (k in tn or tn in k):
+                pair = rr.get(rez) or (list(rr.values())[0] if rr else None)
+                if pair:
+                    norm = pair[0] if winter else pair[1]
+                break
+        cur = out.setdefault(mon, {}).setdefault(teh, [0.0, 0.0, 0.0])
+        cur[0] += qty; cur[1] += vydano; cur[2] += qty * norm
+    return out
 
 def _norm_org(s):
     """Нормализация имени организации для матча с тарифами: без ТОО/ИП/АО, кавычек, знаков."""
@@ -310,6 +345,10 @@ def home():
         vypusk, otgruzka, ostatki = read_sortirovka()
     except Exception:
         vypusk, otgruzka, ostatki = {}, {}, []
+    try:
+        gsm = read_gsm()
+    except Exception:
+        gsm = {}
     months = sorted(set(list(reisy) + list(rashody) + list(kassa) + list(naprav) + list(svod) + list(vypusk)),
                     key=_mkey_sort, reverse=True)
     nav = "".join(f"<button class=nav-btn data-sec={sid} onclick=\"showSec('{sid}')\"><i class='ti {ic}'></i>{nm}</button>"
@@ -490,6 +529,22 @@ def home():
         f"<div class=panel><h2><i class='ti ti-stack-2'></i>Остатки на складе</h2>"
         f"<div class=ph>лист «Остатки» весовой (текущие)</div>{rows_s}</div></section>")
 
+    # ТЕХНИКА — ГСМ: положено vs выдано
+    g = gsm.get(sel, {})
+    rows_g = ""
+    tot_v = tot_p = 0.0
+    for teh, (qty, vyd, polozh) in sorted(g.items(), key=lambda x: -x[1][1]):
+        tot_v += vyd; tot_p += polozh
+        d = vyd - polozh
+        dmark = (f"<span style='color:var(--red);font-weight:700'> · +{_sp(d)} л сверх</span>" if d > polozh * 0.05 + 5
+                 else f"<span style='color:var(--green)'> · в норме</span>" if polozh else "")
+        rows_g += (f"<div class=r2><span class=nm>{teh}</span>"
+                   f"<span class=mn>{_sp(polozh)} л положено · {_sp(vyd)} л выдано{dmark}</span></div>")
+    tech_html = (
+        f"<section id=sec-tech class=sec><div class=panel><h2><i class='ti ti-truck'></i>Техника — ГСМ по нормам</h2>"
+        f"<div class=ph>{sel} · путевые листы × нормы (сезон учтён) · итого положено {_sp(tot_p)} л / выдано {_sp(tot_v)} л</div>"
+        f"{rows_g or '<div class=muted>путевых листов за месяц нет</div>'}</div></section>")
+
     # ОБЗОР — топ по каждому
     top_pol = "".join(f"<div class=r2><span class=nm>{o}</span><span class=mn>{_spt(v[0])} т</span></div>" for o, v in pol_items[:6]) or "<div class=muted>нет</div>"
     top_cat = "".join(f"<div class=r2><span class=nm>{c}</span><span class=mn>{_sp(v)} ₸</span></div>" for c, v in cat_items[:6]) or "<div class=muted>нет</div>"
@@ -502,6 +557,7 @@ def home():
         f"<section id=sec-polygon class=sec><div class=panel><h2><i class='ti ti-building-factory-2'></i>Полигон — приём отходов по компаниям</h2>"
         f"<div class=ph>{sel} · всего {_spt(tons)} т за {trips} рейсов</div><div class=scroll>{pol_rows}</div>{bill_note}</div></section>"
         f"{sort_html}"
+        f"{tech_html}"
         f"{naprav_html}"
         f"<section id=sec-rashody class=sec><div class=panel><h2><i class='ti ti-credit-card'></i>Расходы по категориям</h2>"
         f"<div class=ph>{sel} · чистые {_sp(rashod_total)} ₸ (без переводов группе/аффилированным)</div><div class=scroll>{cat_rows}</div></div></section>"
