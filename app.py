@@ -150,46 +150,49 @@ PAGE = r"""<!DOCTYPE html><html lang=ru><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>Абат 2006 · Кабинет руководителя</title>
 <link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel=stylesheet>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel=stylesheet>
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css" rel=stylesheet>
 <style>
-:root{--bg:#f4f7f5;--panel:#ffffff;--panel2:#e8f5ee;--line:#e2e9e4;--txt:#22302a;--muted:#6b7d73;--dim:#93a39a;
---green:#0f9d63;--red:#d9534a;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Montserrat',system-ui,sans-serif}
+:root{--bg:#f4f2ed;--panel:#ffffff;--panel2:#eaf6fa;--line:#e5e1d8;--txt:#16233a;--muted:#5a615a;--dim:#9aa09a;
+--green:#33a15c;--teal:#1c87a6;--blue:#185e9e;--ink:#16233a;--red:#c0392b;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Manrope',system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);-webkit-font-smoothing:antialiased}
 .layout{display:flex;min-height:100vh}
-.side{width:212px;background:#ffffff;padding:22px 14px;flex-shrink:0;border-right:1px solid var(--line);position:sticky;top:0;height:100vh}
-.brand{display:flex;align-items:center;gap:10px}.brand .logo{width:38px;height:38px;border-radius:11px;background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:800}
-.brand .name{font-size:16px;font-weight:800;letter-spacing:.03em}.brand .name i{color:var(--green)}
-.brand-sub{font-size:11px;color:var(--dim);margin:3px 0 26px 3px}
-.nav-title{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em;margin:0 0 10px 6px}
-.nav-btn{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;border-radius:10px;color:var(--muted);font-size:14px;font-weight:600;margin-bottom:4px;cursor:pointer;transition:.15s;border:none;background:none;font-family:var(--sans)}
-.nav-btn:hover{color:var(--txt);background:#f0f5f1}.nav-btn.on{background:var(--panel2);color:var(--green)}
+.side{width:232px;background:var(--ink);padding:24px 16px;flex-shrink:0;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:12px}.brand .logo{width:38px;height:35px;display:flex;align-items:center;justify-content:center}
+.brand .name{font-size:18px;font-weight:800;letter-spacing:-.01em;color:#fff}.brand .name i{display:none}
+.brand-sub{font-family:var(--mono);font-size:8.5px;color:#66c1dd;letter-spacing:.14em;text-transform:uppercase;margin:6px 0 28px 1px}
+.nav-title{font-family:var(--mono);font-size:9px;color:#5c718c;text-transform:uppercase;letter-spacing:.14em;margin:0 0 12px 8px}
+.nav-btn{display:flex;align-items:center;gap:12px;width:100%;padding:11px 13px;border-radius:10px;color:#9fb2c4;font-size:14px;font-weight:600;margin-bottom:4px;cursor:pointer;transition:.15s;border:none;background:none;font-family:var(--sans)}
+.nav-btn:hover{color:#fff;background:#1e2f49}.nav-btn.on{background:var(--teal);color:#fff;font-weight:700}
 .nav-btn i{font-size:19px}
-.main{flex:1;padding:24px 30px;min-width:0;max-width:1120px}
-.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
-.hi{font-size:22px;font-weight:800}
-select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;font-family:var(--sans);cursor:pointer}
+.main{flex:1;padding:28px 34px;min-width:0;max-width:1160px;position:relative;z-index:1}
+.wm{position:fixed;right:-90px;bottom:-80px;width:600px;height:auto;opacity:.045;pointer-events:none;z-index:0;filter:blur(1.5px)}
+.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px}
+.hi{font-size:24px;font-weight:800;letter-spacing:-.01em}
+select{background:#fff;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;font-family:var(--sans);cursor:pointer}
 select option{background:var(--panel)}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-.card .val{font-family:var(--mono);font-size:26px;font-weight:700}.card .val.green{color:var(--green)}.card .val.red{color:var(--red)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;position:relative;overflow:hidden}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal)}
+.card .val{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--ink)}.card .val.green{color:var(--green)}.card .val.red{color:var(--red)}
 .card .unit{font-size:14px;color:var(--muted);margin-left:3px}.card .lbl{color:var(--muted);font-size:12.5px;margin-top:9px}
 .sec{display:none}.sec.on{display:block}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
-.panel h2{font-size:15px;font-weight:700;margin:0 0 3px}.panel h2 i{color:var(--green);margin-right:6px}
-.panel .ph{color:var(--dim);font-size:12px;margin-bottom:12px;font-family:var(--mono)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+.panel h2{font-size:15px;font-weight:800;margin:0 0 3px;letter-spacing:-.01em}.panel h2 i{color:var(--teal);margin-right:7px}
+.panel .ph{color:var(--dim);font-size:11.5px;margin-bottom:14px;font-family:var(--mono);letter-spacing:.03em}
 .scroll{max-height:460px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
-.rw{padding:9px 2px;border-bottom:1px solid var(--line)}.rw:last-child{border-bottom:none}
+.rw{padding:10px 2px;border-bottom:1px solid var(--line)}.rw:last-child{border-bottom:none}
 .rw .t{display:flex;justify-content:space-between;font-size:13.5px}.rw .nm{font-weight:600}.rw .mn{font-family:var(--mono);color:var(--muted)}
-.rw .bar{height:4px;border-radius:3px;background:#eef2ef;overflow:hidden;margin-top:5px}.rw .fill{height:100%;border-radius:3px;background:var(--green)}
-.r2{display:flex;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13.5px}.r2:last-child{border-bottom:none}
-.r2 .mn{font-family:var(--mono);font-weight:600}
-.muted{color:var(--muted)}.foot{color:var(--dim);font-size:11px;font-family:var(--mono);margin-top:22px}
+.rw .bar{height:5px;border-radius:3px;background:#eef1ec;overflow:hidden;margin-top:6px}.rw .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--teal))}
+.r2{display:flex;justify-content:space-between;padding:11px 2px;border-bottom:1px solid var(--line);font-size:13.5px}.r2:last-child{border-bottom:none}
+.r2 .nm{font-weight:600}.r2 .mn{font-family:var(--mono);font-weight:700;color:var(--ink)}
+.muted{color:var(--muted)}.foot{color:var(--dim);font-size:11px;font-family:var(--mono);margin-top:24px}
 </style></head><body>
 <div class=layout>
+<svg class=wm viewBox="0 0 200 184"><rect x="0" y="18" width="200" height="152" fill="#16233a" clip-path="url(#abClip)"/></svg>
 <aside class=side>
-  <div class=brand><div class=logo><svg width="26" height="26" viewBox="0 0 48 48"><path d="M17 14 h9 l-3-4 M31 14 a9 9 0 0 1 6 9 l4-2 M33 34 h-9 l3 4 M17 34 a9 9 0 0 1 -6 -9 l-4 2" fill="none" stroke="#0f9d63" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="24" r="4.5" fill="#0f9d63"/></svg></div><div class=name>Абат 2006<i class="ti ti-point-filled" style="font-size:10px"></i></div></div>
+  <div class=brand><div class=logo><svg width="38" height="35" viewBox="0 0 200 184"><defs><clipPath id="abClip" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M100 18 L180 166 L20 166 Z M100 142 L146 166 L54 166 Z M100 46 L134 120 L66 120 Z"/></clipPath></defs><rect x="0" y="18" width="200" height="68" fill="#33a15c" clip-path="url(#abClip)"/><rect x="0" y="86" width="200" height="42" fill="#1c87a6" clip-path="url(#abClip)"/><rect x="0" y="128" width="200" height="42" fill="#185e9e" clip-path="url(#abClip)"/></svg></div><div class=name>Абат 2006<i class="ti ti-point-filled" style="font-size:10px"></i></div></div>
   <div class=brand-sub>полигон и сортировка</div>
   <div class=nav-title>разделы</div>
   __NAV__
@@ -247,11 +250,34 @@ def home():
              "расход": sum(v["расход"] for v in sv.values())}
     kassa_lbl = "Наличные приход (К1+К2)" if sv else "Касса-1 приход"
 
-    kpis = (
-        f"<div class=card><div class=val green>{_spt(tons)}<span class=unit>т</span></div><div class=lbl>Принято на полигон</div></div>"
-        f"<div class=card><div class=val>{trips}</div><div class=lbl>Рейсов за месяц</div></div>"
-        f"<div class=card><div class=val red>{_sp(rashod_total)}<span class=unit>₸</span></div><div class=lbl>Расходы (чистые)</div></div>"
-        f"<div class=card><div class=val>{_sp(k['приход'])}<span class=unit>₸</span></div><div class=lbl>{kassa_lbl}</div></div>")
+    # P&L по начислению из «Направления_1С»: выручка (Кт 6010) и операционные затраты
+    # (всё разнесённое + не разнесённое, БЕЗ внутренних перекладок НЗП/Закрытия)
+    _INTERNAL_NP = ("ДвижениеНЗП", "ЗакрытиеМесяца")
+    rev_nach = nach_total = 0.0
+    for n, s, _nt in naprav.get(sel, []):
+        if "ВЫРУЧКА" in n.upper():
+            rev_nach += s
+            continue
+        if n.startswith("(без подразд.:") and n.split(":", 1)[1].strip(" )") in _INTERNAL_NP:
+            continue
+        nach_total += s
+    profit = rev_nach - nach_total
+    sebes_t = (nach_total / tons) if tons > 0 else 0.0
+
+    if rev_nach or nach_total:
+        kpis = (
+            f"<div class=card><div class='val green'>{_sp(rev_nach)}<span class=unit>₸</span></div><div class=lbl>Выручка (начисление, 1С)</div></div>"
+            f"<div class=card><div class='val red'>{_sp(nach_total)}<span class=unit>₸</span></div><div class=lbl>Затраты операционные</div></div>"
+            f"<div class=card><div class='val {'green' if profit >= 0 else 'red'}'>{'+' if profit >= 0 else '−'}{_sp(abs(profit))}<span class=unit>₸</span></div><div class=lbl>Прибыль за месяц</div></div>"
+            f"<div class=card><div class='val green'>{_spt(tons)}<span class=unit>т</span></div><div class=lbl>Принято на полигон · {trips} рейсов</div></div>"
+            f"<div class=card><div class='val'>{_sp(sebes_t)}<span class=unit>₸/т</span></div><div class=lbl>Затраты на тонну приёма</div></div>"
+            f"<div class=card><div class='val'>{_sp(k['приход'])}<span class=unit>₸</span></div><div class=lbl>{kassa_lbl}</div></div>")
+    else:
+        kpis = (
+            f"<div class=card><div class='val green'>{_spt(tons)}<span class=unit>т</span></div><div class=lbl>Принято на полигон</div></div>"
+            f"<div class=card><div class='val'>{trips}</div><div class=lbl>Рейсов за месяц</div></div>"
+            f"<div class=card><div class='val red'>{_sp(rashod_total)}<span class=unit>₸</span></div><div class=lbl>Расходы (чистые)</div></div>"
+            f"<div class=card><div class='val'>{_sp(k['приход'])}<span class=unit>₸</span></div><div class=lbl>{kassa_lbl}</div></div>")
 
     pol_items = sorted(pol.items(), key=lambda x: -x[1][0])
     mx = max([v[0] for _, v in pol_items], default=1)
